@@ -6,6 +6,7 @@ import SuccessStoriesPage from './components/pages/SuccessStoriesPage';
 import BlogPage from './components/pages/BlogPage';
 import BlogPostPage from './components/pages/BlogPostPage';
 import Chatbot from './components/Chatbot';
+import ApiKeyModal from './components/ApiKeyModal';
 import { Page } from './types';
 
 const App: React.FC = () => {
@@ -13,6 +14,8 @@ const App: React.FC = () => {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showChatBubble, setShowChatBubble] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('gemini-api-key'));
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
   useEffect(() => {
     // Show the proactive chat bubble after a delay
@@ -64,6 +67,12 @@ const App: React.FC = () => {
     navigate('home', '#booking');
     setIsChatOpen(false); // Close chat after directing them
   };
+  
+  const handleApiKeySubmit = (key: string) => {
+    sessionStorage.setItem('gemini-api-key', key);
+    setApiKey(key);
+    setIsApiKeyModalOpen(false);
+  };
 
   const renderPage = () => {
     switch (currentPage) {
@@ -113,7 +122,18 @@ const App: React.FC = () => {
           </svg>
         </button>
       </div>
-      <Chatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} scrollToBooking={scrollToBooking} />
+      <Chatbot 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        scrollToBooking={scrollToBooking}
+        apiKey={apiKey}
+        requestApiKey={() => setIsApiKeyModalOpen(true)}
+      />
+      <ApiKeyModal 
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        onSubmit={handleApiKeySubmit}
+      />
     </div>
   );
 };

@@ -6,11 +6,13 @@ interface ChatbotProps {
   isOpen: boolean;
   onClose: () => void;
   scrollToBooking: () => void;
+  apiKey: string | null;
+  requestApiKey: () => void;
 }
 
 type ConversationState = 'greeting' | 'collecting_name' | 'collecting_email' | 'collecting_time' | 'faq';
 
-const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) => {
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking, apiKey, requestApiKey }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,17 +28,21 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) =
   
   useEffect(() => {
     if (isOpen) {
-      setMessages([
+      const initialMessages: Message[] = [
         { id: '1', text: "Hey, how are you doing today?", sender: 'bot' },
         { id: '2', text: "Do you want any help with your business, or to create anything? I'm here to assist.", sender: 'bot' }
-      ]);
+      ];
+      if (!apiKey) {
+        initialMessages.push({ id: '3', text: "To get started, please provide a Google Gemini API key. I'll prompt you for it when you send your first message.", sender: 'bot' });
+      }
+      setMessages(initialMessages);
       setConversationState('collecting_name');
     } else {
       // Reset state when closed
       setUserData({ name: '', email: '' });
       setConversationState('greeting');
     }
-  }, [isOpen]);
+  }, [isOpen, apiKey]);
 
   const addBotMessage = (text: string, hasAction = false) => {
     const botMessage: Message = { id: (Date.now() + 1).toString(), text, sender: 'bot', hasAction };
@@ -46,6 +52,12 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) =
 
   const handleSend = async () => {
     if (input.trim() === '' || isLoading) return;
+
+    if (!apiKey) {
+        requestApiKey();
+        addBotMessage("Please provide your API key before we can continue.");
+        return;
+    }
 
     const userMessage: Message = { id: Date.now().toString(), text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -57,7 +69,9 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) =
     setMessages(prev => [...prev, { id: typingIndicatorId, text: '', sender: 'bot', isTyping: true }]);
     setTimeout(scrollToBottom, 100);
 
-    // Simulate bot thinking time
+    // Simulate bot thinking time before calling API for non-scripted parts
+    const isScriptedFlow = ['collecting_name', 'collecting_email', 'collecting_time'].includes(conversationState);
+
     setTimeout(() => {
       let botMessageText = '';
 
@@ -90,7 +104,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) =
           
         case 'faq':
         default:
-          sendMessageToGemini(currentInput).then(responseText => {
+          sendMessageToGemini(currentInput, apiKey).then(responseText => {
               const suggestsBooking = /book|schedule|consultation|demo|call|calendar/i.test(currentInput) || /book|schedule|consultation|demo|call|calendar/i.test(responseText);
               addBotMessage(responseText, suggestsBooking);
           }).catch(error => {
@@ -99,7 +113,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) =
           });
           break;
       }
-    }, 1200);
+    }, isScriptedFlow ? 1200 : 0);
   };
 
   if (!isOpen) return null;
@@ -150,9 +164,9 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, scrollToBooking }) =
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type your message..."
+              placeholder={apiKey ? "Type your message..." : "Please add your API key first"}
               className="flex-1 bg-transparent p-3 focus:outline-none text-gray-800 placeholder-gray-500"
-              disabled={isLoading}
+              disabled={isLoading || !apiKey}
             />
             <button onClick={handleSend} disabled={isLoading || !input.trim()} className="bg-teal-500 text-white p-3 rounded-r-lg hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
               {isLoading ? (

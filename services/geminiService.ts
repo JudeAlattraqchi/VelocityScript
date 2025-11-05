@@ -1,16 +1,12 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-const API_KEY = process.env.API_KEY;
+export async function sendMessageToGemini(message: string, apiKey: string): Promise<string> {
+  if (!apiKey) {
+    return "API key not provided. Please set your API key to use the chatbot.";
+  }
 
-if (!API_KEY) {
-  // This is a fallback for development. In a real environment, the key should be set.
-  console.warn("API_KEY is not set. Using a placeholder. Please set the environment variable.");
-}
+  const ai = new GoogleGenAI({ apiKey });
 
-const ai = new GoogleGenAI({ apiKey: API_KEY || "YOUR_API_KEY_HERE" });
-
-export async function sendMessageToGemini(message: string): Promise<string> {
   const systemInstruction = `You are Nancy, a friendly and expert AI assistant for Velocity Script, an AI voice and automation agency. Your goal is to be helpful, answer user questions about AI and our services, and guide them towards booking a consultation. Keep your answers concise and clear.
 
 Velocity Script offers the following services:
@@ -35,6 +31,10 @@ When asked about what you can do or what the company does, briefly mention these
       return response.text;
   } catch (error) {
     console.error("Gemini API error:", error);
+    // Check for common API key errors
+    if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('API key is invalid'))) {
+        return "It seems your API key is not valid. Please check it and try again.";
+    }
     return "I'm sorry, I'm having trouble connecting to my brain right now. Please try again later.";
   }
 }
